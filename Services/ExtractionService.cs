@@ -17,9 +17,6 @@ public partial class ExtractionService
 	private readonly IChatClient _chatClient;
 	private readonly DocumentIntelligenceClient _docClient;
 
-	// Per-extraction metrics — reset at the start of each ExtractAsync call.
-	private ExtractionMetrics _metrics = new();
-
 	public ExtractionService(string endpoint, string apiKey)
 	{
 		var credential = new AzureKeyCredential(apiKey);
@@ -34,7 +31,8 @@ public partial class ExtractionService
 	/// </summary>
 	public async Task<ExtractionResult> ExtractAsync(string pdfPath, string? outputDir = null, CancellationToken cancellationToken = default)
 	{
-		_metrics = new ExtractionMetrics();
+		// Metrics are a local so concurrent ExtractAsync calls don't clobber each other.
+		var metrics = new ExtractionMetrics();
 		var pipelineSw = Stopwatch.StartNew();
 
 		var fileName = Path.GetFileNameWithoutExtension(pdfPath);
@@ -49,7 +47,7 @@ public partial class ExtractionService
 		if (cachedMdPath != null && File.Exists(cachedMdPath))
 		{
 			markdown = await File.ReadAllTextAsync(cachedMdPath, cancellationToken);
-			_metrics.MarkdownFromCache = true;
+			metrics.MarkdownFromCache = true;
 			Console.WriteLine($"  Step 1: Using cached Markdown ({markdown.Length:N0} chars)");
 		}
 		else
@@ -65,8 +63,8 @@ public partial class ExtractionService
 			markdown = operation.Value.Content;
 			diSw.Stop();
 
-			_metrics.DocumentIntelligenceDuration = diSw.Elapsed;
-			_metrics.DocumentIntelligenceCalls = 1;
+			metrics.DocumentIntelligenceDuration = diSw.Elapsed;
+			metrics.DocumentIntelligenceCalls = 1;
 			Console.WriteLine($"  Markdown: {markdown.Length:N0} chars ({diSw.Elapsed.TotalSeconds:F1}s)");
 
 			// Save Markdown for future cache
@@ -85,7 +83,7 @@ public partial class ExtractionService
 
 		// Step 4: GPT-5.1 structured extraction with retry
 		Console.WriteLine("  Step 2: GPT-5.1 extraction (2 parallel calls: Rozvaha + VZZ)...");
-		var (aktiva, pasiva, vzz) = await ExtractWithRetryAsync(rozvahaSection, vzzSection, cancellationToken);
+		var (aktiva, pasiva, vzz) = await ExtractWithRetryAsync(rozvahaSection, vzzSection, metrics, cancellationToken);
 
 		var ucetniZaverka = new UcetniZaverka
 		{
@@ -105,13 +103,13 @@ public partial class ExtractionService
 			UcetniZaverka = ucetniZaverka,
 			JeRozvahaVRovnovaze = ucetniZaverka.JeRozvahaVRovnovaze,
 			JeVHKonzistentni = ucetniZaverka.JeVysledekHospodareniKonzistentni,
-			Metrics = _metrics
+			Metrics = metrics
 		};
 
 		pipelineSw.Stop();
-		_metrics.TotalDuration = pipelineSw.Elapsed;
+		metrics.TotalDuration = pipelineSw.Elapsed;
 		Console.WriteLine($"  Result: Balance={Fmt(result.JeRozvahaVRovnovaze)}, VH={Fmt(result.JeVHKonzistentni)}");
-		Console.WriteLine($"  Metrics: {_metrics.GptCalls} GPT calls, {_metrics.GptInputTokens:N0}+{_metrics.GptOutputTokens:N0}={_metrics.GptTotalTokens:N0} tokens, GPT {_metrics.GptTotalDuration.TotalSeconds:F1}s, total {_metrics.TotalDuration.TotalSeconds:F1}s");
+		Console.WriteLine($"  Metrics: {metrics.GptCalls} GPT calls, {metrics.GptInputTokens:N0}+{metrics.GptOutputTokens:N0}={metrics.GptTotalTokens:N0} tokens, GPT {metrics.GptTotalDuration.TotalSeconds:F1}s, total {metrics.TotalDuration.TotalSeconds:F1}s");
 		return result;
 	}
 
@@ -120,7 +118,7 @@ public partial class ExtractionService
 	private static readonly ChatOptions DefaultOptions = new() { Temperature = 0f, MaxOutputTokens = 16384 };
 
 	private async Task<(RozvahaAktiva aktiva, RozvahaPasiva pasiva, VykazZiskuAZtraty vzz)>
-		ExtractWithRetryAsync(string rozvahaSection, string vzzSection, CancellationToken cancellationToken = default)
+		ExtractWithRetryAsync(string rozvahaSection, string vzzSection, ExtractionMetrics metrics, CancellationToken cancellationToken = default)
 	{
 		var vzzMessages = BuildVzzMessages(vzzSection);
 
@@ -131,8 +129,8 @@ public partial class ExtractionService
 
 		// Initial extraction: combined Rozvaha (Aktiva+Pasiva) + VZZ in parallel (2 calls instead of 3)
 		var rozvahaMessages = BuildRozvahaMessages(rozvahaSection, refAktivaNetto, refPasivaBezne);
-		var rozvahaTask = SafeExtractAsync<RozvahaComplete>("Rozvaha", rozvahaMessages, options: RozvahaOptions);
-		var vzzTask = SafeExtractAsync<VykazZiskuAZtraty>("VZZ", vzzMessages);
+		var rozvahaTask = SafeExtractAsync<RozvahaComplete>("Rozvaha", rozvahaMessages, metrics, options: RozvahaOptions);
+		var vzzTask = SafeExtractAsync<VykazZiskuAZtraty>("VZZ", vzzMessages, metrics);
 		await Task.WhenAll(rozvahaTask, vzzTask);
 
 		var rozvahaResult = await rozvahaTask;
@@ -164,7 +162,7 @@ public partial class ExtractionService
 				break;
 			}
 
-			_metrics.BalanceRetries++;
+			metrics.BalanceRetries++;
 
 			// Determine which side to retry based on reference totals
 			bool retryAktiva = true, retryPasiva = true;
@@ -199,12 +197,12 @@ public partial class ExtractionService
 			if (retryAktiva)
 			{
 				var feedbackAktiva = BuildAktivaCorrectionMessages(rozvahaSection, aktivaResult, diff, refAktivaNetto);
-				retryAktivaTask = SafeExtractAsync<RozvahaAktiva>("Aktiva-retry", feedbackAktiva);
+				retryAktivaTask = SafeExtractAsync<RozvahaAktiva>("Aktiva-retry", feedbackAktiva, metrics);
 			}
 			if (retryPasiva)
 			{
 				var feedbackPasiva = BuildPasivaCorrectionMessages(rozvahaSection, pasivaResult, -diff, refPasivaBezne);
-				retryPasivaTask = SafeExtractAsync<RozvahaPasiva>("Pasiva-retry", feedbackPasiva);
+				retryPasivaTask = SafeExtractAsync<RozvahaPasiva>("Pasiva-retry", feedbackPasiva, metrics);
 			}
 
 			if (retryAktivaTask != null) aktivaResult = await retryAktivaTask;
@@ -313,7 +311,7 @@ public partial class ExtractionService
 	/// Safely call GetResponseAsync with retry on deserialization failures (truncated JSON).
 	/// Captures token usage and timing metrics.
 	/// </summary>
-	private async Task<T> SafeExtractAsync<T>(string label, List<ChatMessage> messages, int maxAttempts = 3, ChatOptions? options = null)
+	private async Task<T> SafeExtractAsync<T>(string label, List<ChatMessage> messages, ExtractionMetrics metrics, int maxAttempts = 3, ChatOptions? options = null)
 	{
 		options ??= DefaultOptions;
 		for (int attempt = 1; attempt <= maxAttempts; attempt++)
@@ -323,20 +321,20 @@ public partial class ExtractionService
 			{
 				var response = await _chatClient.GetResponseAsync<T>(messages, options);
 				callSw.Stop();
-				RecordGptCall(label, callSw.Elapsed, response.Usage, attempt, success: true);
+				RecordGptCall(metrics, label, callSw.Elapsed, response.Usage, attempt, success: true);
 				return response.Result;
 			}
 			catch (System.Text.Json.JsonException) when (attempt < maxAttempts)
 			{
 				callSw.Stop();
-				RecordGptCall(label, callSw.Elapsed, usage: null, attempt, success: false);
+				RecordGptCall(metrics, label, callSw.Elapsed, usage: null, attempt, success: false);
 				Console.WriteLine($"    ⚠ {label}: JSON parse error (attempt {attempt}/{maxAttempts}), retrying...");
 				await Task.Delay(1000 * attempt);
 			}
 			catch (System.Text.Json.JsonException)
 			{
 				callSw.Stop();
-				RecordGptCall(label, callSw.Elapsed, usage: null, attempt, success: false);
+				RecordGptCall(metrics, label, callSw.Elapsed, usage: null, attempt, success: false);
 				// Last attempt failed — try non-generic call to inspect raw response
 				Console.WriteLine($"    ⚠ {label}: JSON parse error (attempt {attempt}/{maxAttempts}), trying raw inspection...");
 			}
@@ -346,7 +344,7 @@ public partial class ExtractionService
 		var fallbackSw = Stopwatch.StartNew();
 		var rawResponse = await _chatClient.GetResponseAsync(messages, options);
 		fallbackSw.Stop();
-		RecordGptCall($"{label}-raw", fallbackSw.Elapsed, rawResponse.Usage, maxAttempts + 1, success: true);
+		RecordGptCall(metrics, $"{label}-raw", fallbackSw.Elapsed, rawResponse.Usage, maxAttempts + 1, success: true);
 
 		var rawText = rawResponse.Text ?? "";
 		Console.WriteLine($"    ✗ {label}: Raw response length={rawText.Length}, last 200 chars: ...{rawText[Math.Max(0, rawText.Length - 200)..]}");
@@ -354,16 +352,16 @@ public partial class ExtractionService
 			?? throw new InvalidOperationException($"{label}: GPT-5.1 returned invalid JSON after {maxAttempts + 1} attempts");
 	}
 
-	private void RecordGptCall(string label, TimeSpan duration, UsageDetails? usage, int attempt, bool success)
+	private static void RecordGptCall(ExtractionMetrics metrics, string label, TimeSpan duration, UsageDetails? usage, int attempt, bool success)
 	{
 		long inputTokens = usage?.InputTokenCount ?? 0;
 		long outputTokens = usage?.OutputTokenCount ?? 0;
 
-		_metrics.GptCalls++;
-		_metrics.GptTotalDuration += duration;
-		_metrics.GptInputTokens += inputTokens;
-		_metrics.GptOutputTokens += outputTokens;
-		_metrics.GptCallDetails.Add(new GptCallDetail
+		metrics.GptCalls++;
+		metrics.GptTotalDuration += duration;
+		metrics.GptInputTokens += inputTokens;
+		metrics.GptOutputTokens += outputTokens;
+		metrics.GptCallDetails.Add(new GptCallDetail
 		{
 			Label = label,
 			Duration = duration,

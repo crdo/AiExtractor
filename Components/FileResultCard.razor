@@ -1,0 +1,104 @@
+@inject ExtractionRunner Runner
+
+<HxTabPanel InitialActiveTabId="summary" NavVariant="NavVariant.Tabs" RenderMode="TabPanelRenderMode.ActiveTabOnly">
+
+	<HxTab Id="summary" Title="Přehled">
+		<Content>
+			<div class="row g-3 mb-4">
+				<div class="col-6 col-md-3">
+					<div class="kpi">
+						<span class="kpi-label">Období</span>
+						<span class="kpi-value" style="font-size: 1.25rem;">@(Result.UcetniZaverka.ObdobiOd?.Year)</span>
+						<span class="kpi-sub">@(Result.UcetniZaverka.ObdobiOd?.ToString("dd.MM.yyyy")) – @(Result.UcetniZaverka.ObdobiDo?.ToString("dd.MM.yyyy"))</span>
+					</div>
+				</div>
+				<div class="col-6 col-md-3">
+					<div class="kpi">
+						<span class="kpi-label">IČO</span>
+						<span class="kpi-value tabular">@Result.UcetniZaverka.Ico</span>
+						<span class="kpi-sub text-truncate" style="max-width: 100%;">@Result.UcetniZaverka.NazevSpolecnosti</span>
+					</div>
+				</div>
+				<div class="col-6 col-md-3">
+					<div class="kpi @(Result.JeRozvahaVRovnovaze ? "ok" : "bad")">
+						<span class="kpi-label">Aktiva (netto)</span>
+						<span class="kpi-value tabular">@Fmt(Result.UcetniZaverka.Aktiva.AktivaCelkem.Netto)</span>
+						<span class="kpi-sub">
+							@if (Result.JeRozvahaVRovnovaze)
+							{ <span>= pasiva běžné</span> }
+							else
+							{ <span>≠ pasiva (Δ @Fmt(Result.UcetniZaverka.Aktiva.AktivaCelkem.Netto - Result.UcetniZaverka.Pasiva.PasivaCelkem.Bezne))</span> }
+						</span>
+					</div>
+				</div>
+				<div class="col-6 col-md-3">
+					<div class="kpi @(Result.JeVHKonzistentni ? "ok" : "bad")">
+						<span class="kpi-label">VH za období</span>
+						<span class="kpi-value tabular">@Fmt(Result.UcetniZaverka.VykazZiskuAZtraty.VysledekHospodareniZaObdobi.Bezne)</span>
+						<span class="kpi-sub">
+							@if (Result.JeVHKonzistentni)
+							{ <span>= A.V. pasiv</span> }
+							else
+							{ <span>≠ A.V. (Δ @Fmt(Result.UcetniZaverka.VykazZiskuAZtraty.VysledekHospodareniZaObdobi.Bezne - Result.UcetniZaverka.Pasiva.AV_VysledekHospodareniBeznehoObdobi.Bezne))</span> }
+						</span>
+					</div>
+				</div>
+			</div>
+
+			@if (Result.Metrics is { } m)
+			{
+				<div class="eyebrow mb-2">API metriky</div>
+				<div class="row g-2">
+					<div class="col"><div class="kpi"><span class="kpi-label">Celkem</span><span class="kpi-value tabular">@m.TotalDuration.TotalSeconds.ToString("F1") s</span></div></div>
+					<div class="col"><div class="kpi"><span class="kpi-label">Doc&nbsp;Intel</span><span class="kpi-value tabular">@(m.MarkdownFromCache ? "cache" : $"{m.DocumentIntelligenceDuration.TotalSeconds:F1} s")</span></div></div>
+					<div class="col"><div class="kpi"><span class="kpi-label">GPT volání</span><span class="kpi-value tabular">@m.GptCalls</span></div></div>
+					<div class="col"><div class="kpi"><span class="kpi-label">GPT čas</span><span class="kpi-value tabular">@m.GptTotalDuration.TotalSeconds.ToString("F1") s</span></div></div>
+					<div class="col"><div class="kpi"><span class="kpi-label">Vstup&nbsp;tok.</span><span class="kpi-value tabular">@m.GptInputTokens.ToString("N0")</span></div></div>
+					<div class="col"><div class="kpi"><span class="kpi-label">Výstup&nbsp;tok.</span><span class="kpi-value tabular">@m.GptOutputTokens.ToString("N0")</span></div></div>
+					<div class="col"><div class="kpi"><span class="kpi-label">Retry</span><span class="kpi-value tabular">@m.BalanceRetries</span></div></div>
+				</div>
+			}
+		</Content>
+	</HxTab>
+
+	<HxTab Id="markdown" Title="Markdown">
+		<Content>
+			@if (string.IsNullOrEmpty(markdown))
+			{
+				<HxAlert Color="ThemeColor.Warning">Markdown cache není k dispozici. Při první extrakci ji vygeneruje Azure&nbsp;Document&nbsp;Intelligence.</HxAlert>
+			}
+			else
+			{
+				<div class="markdown-view">
+					<HxMarkdown Content="@markdown" TableCssClass="table" />
+				</div>
+			}
+		</Content>
+	</HxTab>
+
+	<HxTab Id="aktiva" Title="Aktiva">
+		<Content><AktivaTable Aktiva="Result.UcetniZaverka.Aktiva" /></Content>
+	</HxTab>
+
+	<HxTab Id="pasiva" Title="Pasiva">
+		<Content><PasivaTable Pasiva="Result.UcetniZaverka.Pasiva" /></Content>
+	</HxTab>
+
+	<HxTab Id="vzz" Title="Výkaz ZaZ">
+		<Content><VzzTable Vzz="Result.UcetniZaverka.VykazZiskuAZtraty" /></Content>
+	</HxTab>
+
+</HxTabPanel>
+
+@code {
+	[Parameter, EditorRequired] public ExtractionResult Result { get; set; } = default!;
+
+	private string markdown = "";
+
+	protected override void OnParametersSet()
+	{
+		markdown = Runner.ReadMarkdownCache(Result.SourceFile);
+	}
+
+	private static string Fmt(decimal v) => v.ToString("N0", System.Globalization.CultureInfo.GetCultureInfo("cs-CZ"));
+}
