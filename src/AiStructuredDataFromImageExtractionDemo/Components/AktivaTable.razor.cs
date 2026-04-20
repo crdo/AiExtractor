@@ -1,24 +1,11 @@
-<HxGrid TItem="AktivaRow"
-        DataProvider="Provide"
-        PageSize="0"
-        Hover="true"
-        SelectionEnabled="false"
-        Responsive="true"
-        ItemRowCssClassSelector="RowCss"
-        TableCssClass="hx-grid">
-	<Columns>
-		<HxGridColumn HeaderText="Ozn."     HeaderCssClass="eyebrow">
-			<ItemTemplate Context="r"><span class="font-mono" style="padding-left: @(r.Indent * 1.1)rem">@r.Oznaceni</span></ItemTemplate>
-		</HxGridColumn>
-		<HxGridColumn HeaderText="Položka" ItemTextSelector="r => r.Nazev" />
-		<HxGridColumn HeaderText="Brutto"  HeaderCssClass="text-end" ItemCssClass="cell-num" ItemTextSelector="r => Fmt(r.Row.Brutto)" />
-		<HxGridColumn HeaderText="Korekce" HeaderCssClass="text-end" ItemCssClass="cell-num" ItemTextSelector="r => Fmt(r.Row.Korekce)" />
-		<HxGridColumn HeaderText="Netto"   HeaderCssClass="text-end" ItemCssClass="cell-num fw-semibold" ItemTextSelector="r => Fmt(r.Row.Netto)" />
-		<HxGridColumn HeaderText="Min."    HeaderCssClass="text-end" ItemCssClass="cell-num text-muted" ItemTextSelector="r => Fmt(r.Row.MinuleNetto)" />
-	</Columns>
-</HxGrid>
+using Havit.Blazor.Components.Web.Bootstrap;
+using Microsoft.AspNetCore.Components;
+using AiStructuredDataFromImageExtractionDemo.Models;
 
-@code {
+namespace AiStructuredDataFromImageExtractionDemo.Components;
+
+public partial class AktivaTable
+{
 	[Parameter, EditorRequired] public RozvahaAktiva Aktiva { get; set; } = default!;
 
 	public sealed record AktivaRow(string Oznaceni, string Nazev, RozvahaAktivaRadek Row, int Indent, bool IsTotal);

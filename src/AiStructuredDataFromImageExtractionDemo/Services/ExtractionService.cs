@@ -792,6 +792,42 @@ public partial class ExtractionService
 				i++;
 		}
 
+		// Fallback: some OCR outputs emit the section title as a plain standalone line
+		// (e.g. "ROZVAHA\n" without any # heading prefix). If no headings matched, try
+		// to find the keyword on its own line and extend to the next major section anchor.
+		if (sections.Count == 0)
+		{
+			var standalonePattern = new Regex(
+				$@"^\s*{Regex.Escape(keyword)}[^\n]*$",
+				RegexOptions.IgnoreCase | RegexOptions.Multiline);
+			var standalone = standalonePattern.Match(text);
+			if (standalone.Success)
+			{
+				// Terminate at the next known major anchor (any heading, ROZVAHA/VÝKAZ/PŘÍLOHA standalone)
+				// that is NOT another occurrence of our keyword.
+				var terminatorPattern = new Regex(
+					$@"(?im)(^#+\s+.+$|^\s*(rozvaha|výkaz\s+zisku|příloha)\b[^\n]*$)",
+					RegexOptions.IgnoreCase | RegexOptions.Multiline);
+
+				int searchAfter = standalone.Index + standalone.Length;
+				int end = text.Length;
+				var terminator = terminatorPattern.Match(text, searchAfter);
+				while (terminator.Success)
+				{
+					if (terminator.Value.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+					{
+						// same keyword again → keep expanding (merge split tables)
+						searchAfter = terminator.Index + terminator.Length;
+						terminator = terminatorPattern.Match(text, searchAfter);
+						continue;
+					}
+					end = terminator.Index;
+					break;
+				}
+				sections.Add(text[standalone.Index..end].Trim());
+			}
+		}
+
 		return string.Join("\n\n", sections);
 	}
 

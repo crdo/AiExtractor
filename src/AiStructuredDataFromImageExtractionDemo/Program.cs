@@ -37,4 +37,30 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
 	.AddInteractiveServerRenderMode();
 
+// PDF upload endpoint — used by HxInputFileDropZone on the Home page.
+// Saves uploaded PDFs into the configured extraction directory so the grid picks them up.
+app.MapPost("/api/upload", async (HttpRequest request) =>
+{
+	if (!request.HasFormContentType)
+		return Results.BadRequest("multipart/form-data expected");
+
+	Directory.CreateDirectory(ExtractionRunner.DefaultExtractionDir);
+	var form = await request.ReadFormAsync();
+	var saved = new List<string>();
+
+	foreach (var file in form.Files)
+	{
+		if (file.Length == 0) continue;
+		var name = Path.GetFileName(file.FileName);
+		if (!name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) continue;
+
+		var target = Path.Combine(ExtractionRunner.DefaultExtractionDir, name);
+		await using var fs = File.Create(target);
+		await file.CopyToAsync(fs);
+		saved.Add(name);
+	}
+
+	return Results.Ok(new { saved });
+}).DisableAntiforgery();
+
 app.Run();
