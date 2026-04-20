@@ -25,16 +25,27 @@
 		</div>
 	</HeaderTemplate>
 	<BodyTemplate>
-		<HxInputText @bind-Value="directory"
-		             Label="Adresář"
-		             Hint="Cesta na serveru se vzory *.pdf."
-		             InputGroupEndTemplate="@InputGroupReloadButton" />
+		<HxInputFileDropZone @ref="dropZone"
+		                     Multiple="true"
+		                     Accept=".pdf,application/pdf"
+		                     UploadUrl="/api/upload"
+		                     OnUploadCompleted="HandleUploadCompleted"
+		                     CssClass="upload-dropzone mb-3">
+			<NoFilesTemplate>
+				<div class="d-flex flex-column align-items-center py-4 text-center">
+					<HxIcon Icon="@BootstrapIcon.CloudUpload" CssClass="upload-dropzone-icon" />
+					<div class="eyebrow mt-3">Přetáhni PDF sem</div>
+					<div class="small text-muted">nebo klikni a vyber soubory účetních závěrek</div>
+				</div>
+			</NoFilesTemplate>
+		</HxInputFileDropZone>
 
 		<div class="d-flex justify-content-between align-items-center mt-4 mb-2">
-			<span class="eyebrow">Výběr souborů</span>
+			<span class="eyebrow">Soubory ke zpracování</span>
 			<HxButtonGroup Size="ButtonGroupSize.Small">
 				<HxButton Text="Vše" Color="ThemeColor.None" CssClass="btn-light" OnClick="SelectAll" />
 				<HxButton Text="Nic" Color="ThemeColor.None" CssClass="btn-light" OnClick="ClearSelection" />
+				<HxButton Icon="@BootstrapIcon.ArrowClockwise" Color="ThemeColor.None" CssClass="btn-light" OnClick="RefreshGrid" />
 			</HxButtonGroup>
 		</div>
 
@@ -175,108 +186,4 @@
 			</BodyTemplate>
 		</HxCard>
 	</div>
-}
-
-@code {
-	private string directory = ExtractionRunner.DefaultExtractionDir;
-	private List<PdfCandidate>? candidates;
-	private HxGrid<PdfCandidate>? fileGrid;
-	private HashSet<PdfCandidate> selectedFiles = new();
-
-	private bool running;
-	private readonly List<RunProgress> progressItems = new();
-	private List<ExtractionResult> results = new();
-
-	private string runText => running ? "Zpracovává se…" : $"Spustit extrakci ({selectedFiles.Count})";
-
-	private int progressPercent =>
-		progressItems.Count == 0 ? 0
-		: (int)Math.Round(100.0 * progressItems.Count(p => p.State != RunProgressState.Started) / progressItems.Count);
-
-	private RunProgress? ProgressFor(PdfCandidate c)
-		=> progressItems.FirstOrDefault(p => StringComparer.OrdinalIgnoreCase.Equals(p.FileName, c.FileName));
-
-	protected override void OnInitialized() => LoadFiles();
-
-	private void LoadFiles()
-	{
-		try
-		{
-			candidates = Runner.ListPdfs(directory).ToList();
-			// drop any selected files that are no longer present
-			selectedFiles = selectedFiles.Intersect(candidates, new PathEqComparer()).ToHashSet(new PathEqComparer());
-		}
-		catch (Exception ex)
-		{
-			Messenger.AddError("Chyba při čtení složky", ex.Message);
-			candidates = new();
-			selectedFiles = new();
-		}
-	}
-
-	private async Task RefreshGrid()
-	{
-		LoadFiles();
-		if (fileGrid is not null)
-			await fileGrid.RefreshDataAsync();
-	}
-
-	private Task<GridDataProviderResult<PdfCandidate>> ProvidePdfs(GridDataProviderRequest<PdfCandidate> request)
-		=> Task.FromResult(new GridDataProviderResult<PdfCandidate>
-		{
-			Data = candidates ?? new(),
-			TotalCount = candidates?.Count ?? 0
-		});
-
-	private RenderFragment InputGroupReloadButton => @<HxButton Icon="@BootstrapIcon.ArrowClockwise"
-	                                                              Color="ThemeColor.None"
-	                                                              CssClass="btn-light"
-	                                                              OnClick="RefreshGrid" />;
-
-	private void SelectAll()
-	{
-		if (candidates is null) return;
-		selectedFiles = new HashSet<PdfCandidate>(candidates, new PathEqComparer());
-	}
-
-	private void ClearSelection() => selectedFiles = new(new PathEqComparer());
-
-	private async Task RunAsync()
-	{
-		if (selectedFiles.Count == 0) return;
-		running = true;
-		progressItems.Clear();
-		results.Clear();
-
-		var prog = new Progress<RunProgress>(p =>
-		{
-			var i = progressItems.FindIndex(x => x.FileName == p.FileName);
-			if (i >= 0) progressItems[i] = p; else progressItems.Add(p);
-			InvokeAsync(StateHasChanged);
-		});
-
-		try
-		{
-			var done = await Runner.RunAsync(selectedFiles.Select(s => s.FullPath).ToArray(), prog);
-			results = done.ToList();
-			Messenger.AddInformation("Extrakce dokončena", $"{results.Count} / {selectedFiles.Count} souborů");
-			await RefreshGrid();
-		}
-		catch (Exception ex)
-		{
-			Messenger.AddError("Extrakce selhala", ex.Message);
-		}
-		finally
-		{
-			running = false;
-		}
-	}
-
-	private sealed class PathEqComparer : IEqualityComparer<PdfCandidate>
-	{
-		public bool Equals(PdfCandidate? x, PdfCandidate? y)
-			=> StringComparer.OrdinalIgnoreCase.Equals(x?.FullPath, y?.FullPath);
-		public int GetHashCode(PdfCandidate obj)
-			=> StringComparer.OrdinalIgnoreCase.GetHashCode(obj.FullPath);
-	}
 }

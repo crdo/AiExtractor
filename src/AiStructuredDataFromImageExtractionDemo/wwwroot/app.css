@@ -112,10 +112,17 @@ a { text-decoration: none; }
    ============================================================ */
 .app-shell {
 	display: flex;
+	align-items: flex-start; /* sticky sidebar keeps its own (viewport) height */
 	min-height: 100vh;
 }
 
-.app-shell > .hx-sidebar { flex-shrink: 0; }
+/* Havit's HxSidebar + Bootstrap .sticky-top pins on scroll; explicit 100vh keeps it full-height. */
+.app-shell > .hx-sidebar {
+	flex-shrink: 0;
+	align-self: stretch;
+	height: 100vh;
+	top: 0;
+}
 
 .app-main {
 	flex: 1 1 auto;
@@ -441,6 +448,20 @@ tr.row-section-header > td {
 	text-transform: uppercase;
 }
 
+/* HxInputFileDropZone editorial */
+.upload-dropzone {
+	border: 1px dashed var(--rule);
+	background: #fdfaf3;
+	border-radius: 2px;
+	transition: border-color .15s ease, background-color .15s ease;
+}
+.upload-dropzone:hover,
+.upload-dropzone:focus-within {
+	border-color: var(--accent);
+	background: #fbf5e9;
+}
+.upload-dropzone-icon { font-size: 3rem; color: var(--accent); line-height: 1; }
+
 /* form-control editorial */
 .form-control, .form-select {
 	border-radius: 2px;
@@ -529,12 +550,6 @@ tr.row-section-header > td {
 }
 .accordion-button:not(.collapsed)::after {
 	filter: invert(1) brightness(2) sepia(1) hue-rotate(-10deg) saturate(5);
-}
-
-/* HxMessenger — top right editorial */
-.hx-messenger {
-	top: 5.5rem;
-	right: 2rem;
 }
 
 /* Drop zone */

@@ -4,7 +4,7 @@
 <HxMessenger />
 
 <div class="app-shell">
-	<HxSidebar CssClass="app-sidebar">
+	<HxSidebar CssClass="app-sidebar sticky-top">
 		<HeaderTemplate>
 			<HxSidebarBrand BrandName="ZÁVĚRKA" BrandNameShort="&amp;" />
 		</HeaderTemplate>
@@ -43,13 +43,3 @@
 		</main>
 	</div>
 </div>
-
-@code {
-	private int pdfCount;
-
-	protected override void OnInitialized()
-	{
-		try { pdfCount = Runner.ListPdfs().Count; }
-		catch { pdfCount = 0; }
-	}
-}

@@ -1,0 +1,16 @@
+<HxGrid TItem="VzzRow"
+        DataProvider="Provide"
+        PageSize="0"
+        Hover="true"
+        SelectionEnabled="false"
+        Responsive="true"
+        ItemRowCssClassSelector="RowCss"
+        TableCssClass="hx-grid">
+	<Columns>
+		<HxGridColumn HeaderText="Ozn." HeaderCssClass="eyebrow" ItemCssClass="font-mono"
+		              ItemTextSelector="r => r.Oznaceni" />
+		<HxGridColumn HeaderText="Položka" ItemTextSelector="r => r.Nazev" />
+		<HxGridColumn HeaderText="Běžné"  HeaderCssClass="text-end" ItemCssClass="cell-num fw-semibold" ItemTextSelector="r => Fmt(r.Row.Bezne)" />
+		<HxGridColumn HeaderText="Minulé" HeaderCssClass="text-end" ItemCssClass="cell-num text-muted"   ItemTextSelector="r => Fmt(r.Row.Minule)" />
+	</Columns>
+</HxGrid>

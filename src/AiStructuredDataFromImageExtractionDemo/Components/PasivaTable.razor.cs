@@ -1,22 +1,11 @@
-<HxGrid TItem="PasivaRow"
-        DataProvider="Provide"
-        PageSize="0"
-        Hover="true"
-        SelectionEnabled="false"
-        Responsive="true"
-        ItemRowCssClassSelector="RowCss"
-        TableCssClass="hx-grid">
-	<Columns>
-		<HxGridColumn HeaderText="Ozn." HeaderCssClass="eyebrow">
-			<ItemTemplate Context="r"><span class="font-mono" style="padding-left: @(r.Indent * 1.1)rem">@r.Oznaceni</span></ItemTemplate>
-		</HxGridColumn>
-		<HxGridColumn HeaderText="Položka" ItemTextSelector="r => r.Nazev" />
-		<HxGridColumn HeaderText="Běžné"   HeaderCssClass="text-end" ItemCssClass="cell-num fw-semibold" ItemTextSelector="r => Fmt(r.Row.Bezne)" />
-		<HxGridColumn HeaderText="Minulé"  HeaderCssClass="text-end" ItemCssClass="cell-num text-muted"   ItemTextSelector="r => Fmt(r.Row.Minule)" />
-	</Columns>
-</HxGrid>
+using Havit.Blazor.Components.Web.Bootstrap;
+using Microsoft.AspNetCore.Components;
+using AiStructuredDataFromImageExtractionDemo.Models;
 
-@code {
+namespace AiStructuredDataFromImageExtractionDemo.Components;
+
+public partial class PasivaTable
+{
 	[Parameter, EditorRequired] public RozvahaPasiva Pasiva { get; set; } = default!;
 
 	public sealed record PasivaRow(string Oznaceni, string Nazev, RozvahaPasivaRadek Row, int Indent, bool IsTotal);
