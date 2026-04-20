@@ -1,0 +1,183 @@
+@page "/about"
+@page "/instrukce"
+
+<PageTitle>Instrukce · AI Extractor</PageTitle>
+
+<div class="page-kicker">Dokumentace · jak to funguje</div>
+<h1 class="page-title">Od <span class="italic">PDF</span> k strukturovaným datům.</h1>
+<hr class="divider" />
+
+<div class="row g-4">
+	<div class="col-12 col-lg-8">
+
+		<HxCard CssClass="mb-4">
+			<HeaderTemplate>01 · Co aplikace dělá</HeaderTemplate>
+			<BodyTemplate>
+				<p class="mb-2">
+					Aplikace extrahuje strukturovaná data z <strong>účetních závěrek</strong>
+					ve formátu PDF — konkrétně <em>Rozvahu</em> (aktiva i pasiva) a <em>Výkaz zisku
+					a ztráty</em> v druhovém členění podle <strong>Vyhlášky č.&nbsp;500/2002&nbsp;Sb.</strong>
+				</p>
+				<p class="mb-0 text-muted">
+					Výsledkem je strongly-typed model <code>UcetniZaverka</code>,
+					JSON export a přehledová tabulka napříč lety s kontrolou konzistence.
+				</p>
+			</BodyTemplate>
+		</HxCard>
+
+		<HxCard CssClass="mb-4">
+			<HeaderTemplate>02 · Pipeline</HeaderTemplate>
+			<BodyTemplate>
+				<ol class="list-unstyled mb-0">
+					<li class="d-flex gap-3 mb-3">
+						<span class="font-display fs-1 lh-1" style="color: var(--accent); min-width: 2.5rem;">1</span>
+						<div>
+							<div class="font-mono small eyebrow">PDF&nbsp;→&nbsp;Markdown</div>
+							<div><strong>Azure Document Intelligence</strong> (prebuilt-layout, výstup ve formátu Markdown) rozpozná rozvržení tabulek i čísel. Výsledný <code>.md</code> se ukládá vedle zdrojového PDF jako <strong>cache</strong> — další běhy jej načtou bez opakovaného volání.</div>
+						</div>
+					</li>
+					<li class="d-flex gap-3 mb-3">
+						<span class="font-display fs-1 lh-1" style="color: var(--accent); min-width: 2.5rem;">2</span>
+						<div>
+							<div class="font-mono small eyebrow">Detekce sekcí</div>
+							<div>Z Markdownu se regexem vyextrahují hlavičky <code>## ROZVAHA</code> a <code>## VÝKAZ ZISKU</code> a jejich tabulky — sníží to token count pro GPT a brání halucinacím.</div>
+						</div>
+					</li>
+					<li class="d-flex gap-3 mb-3">
+						<span class="font-display fs-1 lh-1" style="color: var(--accent); min-width: 2.5rem;">3</span>
+						<div>
+							<div class="font-mono small eyebrow">Strukturovaná extrakce</div>
+							<div>Dvě paralelní volání <strong>GPT-5.1</strong> (model <code>gpt-5.1-2</code> s <code>temperature=0</code>, <code>MaxOutputTokens=16384</code>):
+								<ul class="mb-0 mt-1">
+									<li>kombinovaná Rozvaha (aktiva + pasiva v jednom volání)</li>
+									<li>Výkaz zisku a ztráty</li>
+								</ul>
+								Via <code>IChatClient.GetResponseAsync&lt;T&gt;()</code> se JSON schema odvozuje přímo z C# záznamů <code>RozvahaComplete</code> a <code>VykazZiskuAZtraty</code>.
+							</div>
+						</div>
+					</li>
+					<li class="d-flex gap-3 mb-3">
+						<span class="font-display fs-1 lh-1" style="color: var(--accent); min-width: 2.5rem;">4</span>
+						<div>
+							<div class="font-mono small eyebrow">Validační smyčka (až 3×)</div>
+							<div>Pokud <code>Aktiva CELKEM&nbsp;≠&nbsp;Pasiva CELKEM</code>, z PDF se regexem pokusí získat referenční totály a GPT se zavolá znovu s feedbackem kterou stranu opravit. Brutto+Korekce=Netto kontrola v aktivech odhaluje typické OCR záměny číslic.</div>
+						</div>
+					</li>
+					<li class="d-flex gap-3 mb-0">
+						<span class="font-display fs-1 lh-1" style="color: var(--accent); min-width: 2.5rem;">5</span>
+						<div>
+							<div class="font-mono small eyebrow">JSON export + agregace</div>
+							<div>Každý soubor dostane <code>.json</code> s kompletním modelem. Přehledová tabulka pak skládá výsledky napříč lety a barví buňky podle Y/Y konzistence (zelená&nbsp;=&nbsp;minulé období souhlasí s předchozím výkazem, žlutá&nbsp;=&nbsp;rozpor, červená&nbsp;=&nbsp;nebalancuje).</div>
+						</div>
+					</li>
+				</ol>
+			</BodyTemplate>
+		</HxCard>
+
+		<HxCard CssClass="mb-4">
+			<HeaderTemplate>03 · Validace &amp; konzistence</HeaderTemplate>
+			<BodyTemplate>
+				<ul class="list-unstyled mb-0">
+					<li class="d-flex gap-3 py-2 border-bottom" style="border-color: var(--rule) !important;">
+						<span class="status-pill ok" style="min-width: 4rem;">✓</span>
+						<div>
+							<strong>Rozvaha v rovnováze</strong> — <code>Aktiva CELKEM (Netto)&nbsp;=&nbsp;Pasiva CELKEM (Běžné)</code>
+							<div class="text-muted small">§&nbsp;4 odst.&nbsp;10 Vyhlášky 500/2002&nbsp;Sb.</div>
+						</div>
+					</li>
+					<li class="d-flex gap-3 py-2 border-bottom" style="border-color: var(--rule) !important;">
+						<span class="status-pill ok" style="min-width: 4rem;">✓</span>
+						<div>
+							<strong>VH konzistentní</strong> — <code>VZZ: VH za období&nbsp;=&nbsp;Pasiva: A.V.</code>
+							<div class="text-muted small">Cross-statement check mezi výkazem zisku a rozvahou.</div>
+						</div>
+					</li>
+					<li class="d-flex gap-3 py-2 border-bottom" style="border-color: var(--rule) !important;">
+						<span class="status-pill warn" style="min-width: 4rem;">⚠</span>
+						<div>
+							<strong>Brutto&nbsp;+&nbsp;Korekce&nbsp;=&nbsp;Netto</strong> pro každý neprázdný řádek aktiv
+							<div class="text-muted small">Odhaluje OCR záměny číslic (typicky 8↔0, 6↔0, 5↔8, 1↔7).</div>
+						</div>
+					</li>
+					<li class="d-flex gap-3 py-2">
+						<span class="status-pill ok" style="min-width: 4rem;">Y/Y</span>
+						<div>
+							<strong>Konzistence napříč lety</strong> — „Minulé" v tomto výkazu vs. „Běžné" v předchozím
+							<div class="text-muted small">Rozdíl v pouhém znaménku (OCR artefakt) se značí jako shoda s tečkovaným podtržením.</div>
+						</div>
+					</li>
+				</ul>
+			</BodyTemplate>
+		</HxCard>
+
+	</div>
+
+	<div class="col-12 col-lg-4">
+
+		<HxCard CssClass="mb-4">
+			<HeaderTemplate>Vstup</HeaderTemplate>
+			<BodyTemplate>
+				<div class="font-mono small">
+					<div class="eyebrow mb-1">výchozí cesta</div>
+					<code>~/Documents/extraction/*.pdf</code>
+				</div>
+				<hr />
+				<p class="small mb-2">
+					Cestu jde změnit přímo v UI (pole <em>Adresář</em> na hlavní stránce).
+					Vedle každého PDF se vytvoří:
+				</p>
+				<ul class="small mb-0">
+					<li><code>{nazev}.md</code> — Markdown cache z&nbsp;Doc Intelligence</li>
+					<li><code>{nazev}.json</code> — serializovaná <code>UcetniZaverka</code></li>
+				</ul>
+			</BodyTemplate>
+		</HxCard>
+
+		<HxCard CssClass="mb-4">
+			<HeaderTemplate>Konfigurace</HeaderTemplate>
+			<BodyTemplate>
+				<div class="eyebrow mb-1">Azure OpenAI endpoint</div>
+				<div class="font-mono small mb-3" style="word-break: break-all;">
+					<code>AzureOpenAi:Endpoint</code><br/>
+					nebo env. <code>AZURE_OPENAI_ENDPOINT</code>
+				</div>
+
+				<div class="eyebrow mb-1">API klíč</div>
+				<div class="font-mono small mb-3" style="word-break: break-all;">
+					<code>AzureOpenAi:ApiKey</code><br/>
+					nebo env. <code>AZURE_OPENAI_API_KEY</code>
+				</div>
+
+				<div class="p-2 small" style="background: var(--paper-edge); border: 1px solid var(--rule);">
+					Preferovaně přes<br/><code>dotnet user-secrets set AzureOpenAi:ApiKey &lt;key&gt;</code>
+				</div>
+			</BodyTemplate>
+		</HxCard>
+
+		<HxCard CssClass="mb-4">
+			<HeaderTemplate>Tech stack</HeaderTemplate>
+			<BodyTemplate>
+				<ul class="list-unstyled mb-0 font-mono small">
+					<li class="py-1 border-bottom" style="border-color: var(--rule) !important;">.NET 10 · Blazor Server</li>
+					<li class="py-1 border-bottom" style="border-color: var(--rule) !important;">Havit.Blazor.Components.Web.Bootstrap 4.24</li>
+					<li class="py-1 border-bottom" style="border-color: var(--rule) !important;">Microsoft.Extensions.AI 10.3</li>
+					<li class="py-1 border-bottom" style="border-color: var(--rule) !important;">Azure.AI.OpenAI 2.1</li>
+					<li class="py-1">Azure.AI.DocumentIntelligence 1.0</li>
+				</ul>
+			</BodyTemplate>
+		</HxCard>
+
+		<HxCard>
+			<HeaderTemplate>Modely</HeaderTemplate>
+			<BodyTemplate>
+				<div class="font-mono small">
+					<div class="py-1"><span class="text-muted">chat:</span>&nbsp;<code>gpt-5.1-2</code></div>
+					<div class="py-1"><span class="text-muted">OCR:</span>&nbsp;<code>prebuilt-layout</code></div>
+					<div class="py-1"><span class="text-muted">temp.:</span>&nbsp;0.0</div>
+					<div class="py-1"><span class="text-muted">tokens:</span>&nbsp;16&nbsp;384 out</div>
+				</div>
+			</BodyTemplate>
+		</HxCard>
+
+	</div>
+</div>

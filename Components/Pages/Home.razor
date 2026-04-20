@@ -1,0 +1,282 @@
+@page "/"
+@rendermode InteractiveServer
+@inject ExtractionRunner Runner
+@inject IHxMessengerService Messenger
+
+<PageTitle>Účetní závěrka – AI Extractor</PageTitle>
+
+<div class="page-kicker">Extrakce účetní závěrky · tis. Kč</div>
+<h1 class="page-title">Rozvaha &amp; <span class="italic">výkaz zisku a ztráty</span>, napříč lety.</h1>
+<hr class="divider" />
+
+<HxCard>
+	<HeaderTemplate>
+		<div class="d-flex justify-content-between align-items-center">
+			<span>01 · Zdroj dat</span>
+			@if (running || progressItems.Any())
+			{
+				<span class="d-flex align-items-center gap-2" style="text-transform: none; letter-spacing: 0;">
+					@if (running) { <HxSpinner Size="SpinnerSize.Small" Color="ThemeColor.Primary" /> }
+					<span class="font-mono small text-muted">
+						@progressItems.Count(p => p.State != RunProgressState.Started) / @progressItems.Count
+					</span>
+				</span>
+			}
+		</div>
+	</HeaderTemplate>
+	<BodyTemplate>
+		<HxInputText @bind-Value="directory"
+		             Label="Adresář"
+		             Hint="Cesta na serveru se vzory *.pdf."
+		             InputGroupEndTemplate="@InputGroupReloadButton" />
+
+		<div class="d-flex justify-content-between align-items-center mt-4 mb-2">
+			<span class="eyebrow">Výběr souborů</span>
+			<HxButtonGroup Size="ButtonGroupSize.Small">
+				<HxButton Text="Vše" Color="ThemeColor.None" CssClass="btn-light" OnClick="SelectAll" />
+				<HxButton Text="Nic" Color="ThemeColor.None" CssClass="btn-light" OnClick="ClearSelection" />
+			</HxButtonGroup>
+		</div>
+
+		@if (running || progressItems.Any())
+		{
+			<HxProgress Height="3" CssClass="mb-2">
+				<HxProgressBar Value="@progressPercent" Animated="running" />
+			</HxProgress>
+		}
+
+		@if (candidates is { Count: > 0 })
+		{
+			<HxGrid TItem="PdfCandidate"
+			        @ref="fileGrid"
+			        DataProvider="ProvidePdfs"
+			        MultiSelectionEnabled="true"
+			        SelectionEnabled="true"
+			        @bind-SelectedDataItems="selectedFiles"
+			        Hover="true"
+			        PageSize="0"
+			        ItemKeySelector="c => c.FullPath"
+			        Responsive="true">
+				<Columns>
+					<HxGridColumn HeaderText="Soubor" ItemCssClass="font-mono">
+						<ItemTemplate Context="c">
+							<i class="bi bi-file-earmark-pdf" style="color: var(--accent);"></i>
+							<span class="ms-2">@c.FileName</span>
+						</ItemTemplate>
+					</HxGridColumn>
+					<HxGridColumn HeaderText="Vel." HeaderCssClass="text-end" ItemCssClass="cell-num"
+					              ItemTextSelector="c => c.SizeHuman" />
+					<HxGridColumn HeaderText="Změna" HeaderCssClass="text-end" ItemCssClass="cell-num text-muted"
+					              ItemTextSelector="@(c => c.LastWrite.ToString("yyyy-MM-dd"))" />
+					<HxGridColumn HeaderText="Cache">
+						<ItemTemplate Context="c">
+							@if (c.HasMarkdownCache)
+							{ <HxBadge Color="ThemeColor.Secondary" CssClass="me-1">MD</HxBadge> }
+							@if (c.HasJsonCache)
+							{ <HxBadge Color="ThemeColor.Primary">JSON</HxBadge> }
+						</ItemTemplate>
+					</HxGridColumn>
+					<HxGridColumn HeaderText="Stav">
+						<ItemTemplate Context="c">
+							@{ var p = ProgressFor(c); }
+							@if (p is null)
+							{
+								<span class="text-muted small">—</span>
+							}
+							else
+							{
+								<span class="d-inline-flex align-items-center gap-2 font-mono small">
+									@switch (p.State)
+									{
+										case RunProgressState.Started:
+											<HxSpinner Size="SpinnerSize.Small" Color="ThemeColor.Primary" />
+											<span class="text-muted">probíhá…</span>
+											break;
+										case RunProgressState.Succeeded:
+											<i class="bi bi-check2" style="color: var(--ok);"></i>
+											<span style="color: var(--ok);">hotovo</span>
+											break;
+										case RunProgressState.Failed:
+											<i class="bi bi-x-lg" style="color: var(--bad);"></i>
+											<span style="color: var(--bad);" title="@p.Error">chyba</span>
+											break;
+									}
+								</span>
+							}
+						</ItemTemplate>
+					</HxGridColumn>
+				</Columns>
+			</HxGrid>
+		}
+		else if (candidates is not null)
+		{
+			<HxAlert Color="ThemeColor.Warning" CssClass="mb-0">
+				<strong>Prázdná složka.</strong> Ve zvoleném adresáři nejsou žádné <code>.pdf</code> soubory.
+			</HxAlert>
+		}
+	</BodyTemplate>
+	<FooterTemplate>
+		<div class="d-flex justify-content-between align-items-center">
+			<span class="eyebrow">@selectedFiles.Count vybráno</span>
+			<HxButton Text="@runText"
+			          Icon="@(running ? null : (IconBase)BootstrapIcon.PlayFill)"
+			          Color="ThemeColor.Primary"
+			          Enabled="selectedFiles.Count > 0 && !running"
+			          OnClick="RunAsync" />
+		</div>
+	</FooterTemplate>
+</HxCard>
+
+@if (results.Count == 0 && !running)
+{
+	<div class="app-empty-state mt-4">
+		<div class="display">—</div>
+		<p class="eyebrow">čekám na vstupy</p>
+		<p class="mb-0">Vyber soubory výše a spusť extrakci.<br />
+		Výsledky se objeví v <em>přehledové tabulce</em> níže.</p>
+	</div>
+}
+
+@if (results.Count > 0)
+{
+	<div class="mt-5">
+		<CrossYearTable Results="results" />
+	</div>
+
+	<div class="mt-4">
+		<HxCard>
+			<HeaderTemplate>03 · Detail souborů</HeaderTemplate>
+			<BodyTemplate>
+				<HxAccordion>
+					@foreach (var r in results.OrderBy(x => x.Rok ?? 0))
+					{
+						<HxAccordionItem>
+							<HeaderTemplate>
+								<div class="d-flex align-items-center gap-3 flex-grow-1">
+									<span class="eyebrow" style="min-width: 3.5rem;">@r.Rok</span>
+									<strong>@System.IO.Path.GetFileName(r.SourceFile)</strong>
+									<span class="text-muted">· @r.UcetniZaverka.NazevSpolecnosti</span>
+									<span class="ms-auto d-flex gap-2">
+										<span class="status-pill @(r.JeRozvahaVRovnovaze ? "ok" : "bad")">
+											Rozvaha @(r.JeRozvahaVRovnovaze ? "✓" : "✗")
+										</span>
+										<span class="status-pill @(r.JeVHKonzistentni ? "ok" : "bad")">
+											VH @(r.JeVHKonzistentni ? "✓" : "✗")
+										</span>
+									</span>
+								</div>
+							</HeaderTemplate>
+							<BodyTemplate>
+								<FileResultCard Result="r" />
+							</BodyTemplate>
+						</HxAccordionItem>
+					}
+				</HxAccordion>
+			</BodyTemplate>
+		</HxCard>
+	</div>
+}
+
+@code {
+	private string directory = ExtractionRunner.DefaultExtractionDir;
+	private List<PdfCandidate>? candidates;
+	private HxGrid<PdfCandidate>? fileGrid;
+	private HashSet<PdfCandidate> selectedFiles = new();
+
+	private bool running;
+	private readonly List<RunProgress> progressItems = new();
+	private List<ExtractionResult> results = new();
+
+	private string runText => running ? "Zpracovává se…" : $"Spustit extrakci ({selectedFiles.Count})";
+
+	private int progressPercent =>
+		progressItems.Count == 0 ? 0
+		: (int)Math.Round(100.0 * progressItems.Count(p => p.State != RunProgressState.Started) / progressItems.Count);
+
+	private RunProgress? ProgressFor(PdfCandidate c)
+		=> progressItems.FirstOrDefault(p => StringComparer.OrdinalIgnoreCase.Equals(p.FileName, c.FileName));
+
+	protected override void OnInitialized() => LoadFiles();
+
+	private void LoadFiles()
+	{
+		try
+		{
+			candidates = Runner.ListPdfs(directory).ToList();
+			// drop any selected files that are no longer present
+			selectedFiles = selectedFiles.Intersect(candidates, new PathEqComparer()).ToHashSet(new PathEqComparer());
+		}
+		catch (Exception ex)
+		{
+			Messenger.AddError("Chyba při čtení složky", ex.Message);
+			candidates = new();
+			selectedFiles = new();
+		}
+	}
+
+	private async Task RefreshGrid()
+	{
+		LoadFiles();
+		if (fileGrid is not null)
+			await fileGrid.RefreshDataAsync();
+	}
+
+	private Task<GridDataProviderResult<PdfCandidate>> ProvidePdfs(GridDataProviderRequest<PdfCandidate> request)
+		=> Task.FromResult(new GridDataProviderResult<PdfCandidate>
+		{
+			Data = candidates ?? new(),
+			TotalCount = candidates?.Count ?? 0
+		});
+
+	private RenderFragment InputGroupReloadButton => @<HxButton Icon="@BootstrapIcon.ArrowClockwise"
+	                                                              Color="ThemeColor.None"
+	                                                              CssClass="btn-light"
+	                                                              OnClick="RefreshGrid" />;
+
+	private void SelectAll()
+	{
+		if (candidates is null) return;
+		selectedFiles = new HashSet<PdfCandidate>(candidates, new PathEqComparer());
+	}
+
+	private void ClearSelection() => selectedFiles = new(new PathEqComparer());
+
+	private async Task RunAsync()
+	{
+		if (selectedFiles.Count == 0) return;
+		running = true;
+		progressItems.Clear();
+		results.Clear();
+
+		var prog = new Progress<RunProgress>(p =>
+		{
+			var i = progressItems.FindIndex(x => x.FileName == p.FileName);
+			if (i >= 0) progressItems[i] = p; else progressItems.Add(p);
+			InvokeAsync(StateHasChanged);
+		});
+
+		try
+		{
+			var done = await Runner.RunAsync(selectedFiles.Select(s => s.FullPath).ToArray(), prog);
+			results = done.ToList();
+			Messenger.AddInformation("Extrakce dokončena", $"{results.Count} / {selectedFiles.Count} souborů");
+			await RefreshGrid();
+		}
+		catch (Exception ex)
+		{
+			Messenger.AddError("Extrakce selhala", ex.Message);
+		}
+		finally
+		{
+			running = false;
+		}
+	}
+
+	private sealed class PathEqComparer : IEqualityComparer<PdfCandidate>
+	{
+		public bool Equals(PdfCandidate? x, PdfCandidate? y)
+			=> StringComparer.OrdinalIgnoreCase.Equals(x?.FullPath, y?.FullPath);
+		public int GetHashCode(PdfCandidate obj)
+			=> StringComparer.OrdinalIgnoreCase.GetHashCode(obj.FullPath);
+	}
+}

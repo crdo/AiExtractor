@@ -1,10 +1,11 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
 	<PropertyGroup>
-		<OutputType>Exe</OutputType>
 		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+		<RootNamespace>AiStructuredDataFromImageExtractionDemo</RootNamespace>
+		<UserSecretsId>16a3140d-80aa-46d6-a730-256a95d896d9</UserSecretsId>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -12,6 +13,8 @@
 		<PackageReference Include="Azure.AI.OpenAI" Version="2.1.0" />
 		<PackageReference Include="Microsoft.Extensions.AI" Version="10.3.0" />
 		<PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.3.0" />
+		<PackageReference Include="Havit.Blazor.Components.Web.Bootstrap" Version="4.24.0" />
+		<PackageReference Include="Markdig" Version="0.38.0" />
 	</ItemGroup>
 
 </Project>

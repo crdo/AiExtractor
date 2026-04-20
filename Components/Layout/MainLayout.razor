@@ -1,0 +1,55 @@
+@inherits LayoutComponentBase
+@inject ExtractionRunner Runner
+
+<HxMessenger />
+
+<div class="app-shell">
+	<HxSidebar CssClass="app-sidebar">
+		<HeaderTemplate>
+			<HxSidebarBrand BrandName="ZÁVĚRKA" BrandNameShort="&amp;" />
+		</HeaderTemplate>
+		<ItemsTemplate>
+			<HxSidebarItem Text="Extrakce" Icon="@BootstrapIcon.Flask" Href="/" Match="NavLinkMatch.All" />
+			<HxSidebarItem Text="Instrukce" Icon="@BootstrapIcon.BookHalf" Href="/about" />
+		</ItemsTemplate>
+		<FooterTemplate>
+			@if (!context.SidebarCollapsed)
+			{
+				<div class="sidebar-stats">
+					<span>v adresáři</span>
+					<span class="value tabular">@pdfCount</span>
+					<span>PDF souborů</span>
+				</div>
+			}
+			<HxSidebarFooter Icon="@BootstrapIcon.Cpu"
+			                 Text=".NET 10 · GPT-5.1"
+			                 TextCssClass="@(context.SidebarCollapsed ? "d-md-none" : null)" />
+		</FooterTemplate>
+	</HxSidebar>
+
+	<div class="app-main">
+		<div class="app-ticker">
+			<span class="ticker-label">● LIVE</span>
+			<span>Azure&nbsp;Document&nbsp;Intelligence</span>
+			<span>•</span>
+			<span>GPT-5.1&nbsp;Structured&nbsp;Output</span>
+			<span>•</span>
+			<span>Vyhláška&nbsp;500/2002&nbsp;Sb.</span>
+			<span class="ms-auto text-white-50">@DateTime.Now.ToString("dd.MM.yyyy HH:mm")</span>
+		</div>
+
+		<main class="app-content">
+			@Body
+		</main>
+	</div>
+</div>
+
+@code {
+	private int pdfCount;
+
+	protected override void OnInitialized()
+	{
+		try { pdfCount = Runner.ListPdfs().Count; }
+		catch { pdfCount = 0; }
+	}
+}

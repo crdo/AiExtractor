@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Blazor Server (AiExtractor)",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--no-launch-profile", "--environment", "Development", "--urls", "http://localhost:5080;https://localhost:5443"],
+      "port": 5080
+    }
+  ]
+}

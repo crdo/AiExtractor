@@ -1,0 +1,561 @@
+/* ============================================================
+   AiExtractor — editorial financial-terminal aesthetic
+   Serif display (Fraunces) + IBM Plex Sans/Mono on bone paper.
+   ============================================================ */
+
+:root {
+	/* palette */
+	--ink:         #1a1612;
+	--ink-soft:    #2d2924;
+	--paper:       #f5f0e8;
+	--paper-edge:  #e9e2d3;
+	--rule:        #d6cdb9;
+	--muted:       #7a716a;
+	--accent:      #b8724d; /* terracotta */
+	--accent-ink:  #8a5538;
+	--ok:          #2d5f3f;
+	--ok-soft:     #d9e5d8;
+	--warn:        #b87333;
+	--warn-soft:   #f2e3c8;
+	--bad:         #a13e2f;
+	--bad-soft:    #f0d9d1;
+
+	/* type */
+	--font-display: "Fraunces", "Iowan Old Style", "Palatino", Georgia, serif;
+	--font-body:    "IBM Plex Sans", "Inter Tight", system-ui, sans-serif;
+	--font-mono:    "IBM Plex Mono", "SF Mono", Menlo, monospace;
+
+	/* bootstrap overrides */
+	--bs-body-font-family: var(--font-body);
+	--bs-body-color: var(--ink);
+	--bs-body-bg: var(--paper);
+	--bs-border-color: var(--rule);
+	--bs-link-color: var(--accent-ink);
+	--bs-link-hover-color: var(--accent);
+	--bs-primary: var(--accent);
+	--bs-primary-rgb: 184, 114, 77;
+	--bs-tertiary-bg: #ece5d4;
+	--bs-secondary-bg: #ebe3d1;
+
+	/* havit (HxSidebar — dark/ink with terracotta accents) */
+	--hx-sidebar-background-color: #1a1612;
+	--hx-sidebar-item-color: rgba(245, 240, 232, 0.78);
+	--hx-sidebar-item-icon-color: rgba(245, 240, 232, 0.55);
+	--hx-sidebar-item-hover-color: #f5f0e8;
+	--hx-sidebar-item-hover-icon-color: #b8724d;
+	--hx-sidebar-item-hover-background-color: 184, 114, 77;   /* RGB triplet */
+	--hx-sidebar-item-hover-background-opacity: 0.18;
+	--hx-sidebar-item-active-color: #b8724d;
+	--hx-sidebar-item-active-icon-color: #b8724d;
+	--hx-sidebar-item-active-background-color: 184, 114, 77;
+	--hx-sidebar-item-active-background-opacity: 0.22;
+	--hx-sidebar-parent-item-active-icon-color: #b8724d;
+	--hx-sidebar-brand-shortname-background-color: transparent;
+	--hx-sidebar-brand-shortname-color: #b8724d;
+	--hx-sidebar-brand-shortname-font-weight: 400;
+}
+
+/* Elegant Fraunces italic ampersand for the collapsed-brand glyph */
+.hx-sidebar-brand-shortname {
+	font-family: var(--font-display) !important;
+	font-style: italic;
+	font-size: 2rem;
+	line-height: 1;
+	font-variation-settings: "opsz" 144, "SOFT" 100, "wght" 500;
+}
+
+/* Havit's footer defaults to flex-row; stack vertically so stats + footer-item don't sit side by side */
+.hx-sidebar .hx-sidebar-footer {
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+html, body {
+	font-family: var(--font-body);
+	font-feature-settings: "ss01", "ss02", "cv08", "cv11";
+	background: var(--paper);
+	color: var(--ink);
+	-webkit-font-smoothing: antialiased;
+	letter-spacing: -0.005em;
+}
+
+/* subtle paper texture */
+body {
+	background-image:
+		radial-gradient(circle at 1px 1px, rgba(26, 22, 18, 0.04) 1px, transparent 0),
+		linear-gradient(180deg, var(--paper) 0%, var(--paper-edge) 100%);
+	background-size: 4px 4px, 100% 100%;
+	background-attachment: fixed;
+}
+
+h1, h2, h3, h4, h5, h6,
+.display, .hx-card-title {
+	font-family: var(--font-display);
+	font-weight: 500;
+	font-variation-settings: "opsz" 144, "SOFT" 30;
+	letter-spacing: -0.02em;
+	color: var(--ink);
+}
+
+.font-display { font-family: var(--font-display); font-variation-settings: "opsz" 144, "SOFT" 30; }
+.font-mono    { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.tabular      { font-variant-numeric: tabular-nums; }
+.small-caps   { font-variant-caps: all-small-caps; letter-spacing: 0.1em; }
+
+a { text-decoration: none; }
+
+/* ============================================================
+   App shell
+   ============================================================ */
+.app-shell {
+	display: flex;
+	min-height: 100vh;
+}
+
+.app-shell > .hx-sidebar { flex-shrink: 0; }
+
+.app-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.app-ticker {
+	display: flex;
+	align-items: center;
+	gap: 2rem;
+	padding: 0.6rem 2rem;
+	background: var(--ink);
+	color: var(--paper);
+	font-family: var(--font-mono);
+	font-size: 0.72rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	border-bottom: 1px solid rgba(245, 240, 232, 0.08);
+	overflow: hidden;
+}
+
+.app-ticker .ticker-label {
+	color: var(--accent);
+	font-weight: 600;
+}
+
+.app-content {
+	padding: 2.5rem 2.75rem 4rem;
+	max-width: 1600px;
+	width: 100%;
+}
+
+.page-title {
+	font-size: clamp(2.25rem, 4vw, 3.4rem);
+	line-height: 0.98;
+	margin: 0;
+	font-variation-settings: "opsz" 144, "SOFT" 50, "wght" 440;
+}
+.page-title .italic {
+	font-style: italic;
+	color: var(--accent);
+	font-variation-settings: "opsz" 144, "SOFT" 100;
+}
+
+.page-kicker {
+	font-family: var(--font-mono);
+	font-size: 0.75rem;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--muted);
+	margin-bottom: 0.35rem;
+}
+
+/* ============================================================
+   HxSidebar overrides
+   ============================================================ */
+.hx-sidebar {
+	background: var(--ink);
+	color: var(--paper);
+	border-right: 1px solid var(--ink-soft);
+}
+.hx-sidebar .hx-sidebar-brand {
+	border-bottom: 1px solid rgba(245, 240, 232, 0.06);
+}
+.hx-sidebar .hx-sidebar-brand-name {
+	font-family: var(--font-display);
+	font-variation-settings: "opsz" 144, "SOFT" 80;
+	font-size: 1.4rem;
+	letter-spacing: 0.02em;
+	color: var(--paper);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+/* default Havit shows both short + long at the brand header; hide the one not in use */
+@media (min-width: 768px) {
+	.hx-sidebar:not(.collapsed) .hx-sidebar-brand-shortname { display: none !important; }
+	.hx-sidebar.collapsed   .hx-sidebar-brand-name       { display: none !important; }
+}
+.hx-sidebar a,
+.hx-sidebar .nav-link {
+	color: rgba(245, 240, 232, 0.75);
+	font-size: 0.9rem;
+}
+.hx-sidebar .nav-link:hover { color: var(--paper); }
+
+.sidebar-stats {
+	padding: 1.5rem 1.25rem 0.75rem;
+	font-family: var(--font-mono);
+	font-size: 0.7rem;
+	letter-spacing: 0.15em;
+	text-transform: uppercase;
+	color: rgba(245, 240, 232, 0.4);
+}
+.sidebar-stats .value {
+	display: block;
+	font-family: var(--font-display);
+	font-size: 2rem;
+	font-variation-settings: "opsz" 144;
+	color: var(--accent);
+	letter-spacing: -0.02em;
+	margin-top: 0.2rem;
+}
+
+/* ============================================================
+   HxCard editorial variant
+   ============================================================ */
+.hx-card,
+.card {
+	border: 1px solid var(--rule);
+	border-radius: 2px;
+	box-shadow: none;
+	background: #fdfaf3;
+}
+.hx-card .card-header,
+.card > .card-header {
+	background: transparent;
+	border-bottom: 1px solid var(--rule);
+	font-family: var(--font-mono);
+	font-size: 0.72rem;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--muted);
+	padding: 0.9rem 1.2rem;
+}
+.hx-card .card-body { padding: 1.4rem; }
+
+.card-eyebrow {
+	font-family: var(--font-mono);
+	font-size: 0.68rem;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--accent);
+}
+
+/* ============================================================
+   HxGrid editorial variant
+   ============================================================ */
+.hx-grid-internal,
+table.hx-grid {
+	font-family: var(--font-body);
+	font-size: 0.875rem;
+	--bs-table-bg: transparent;
+	--bs-table-striped-bg: rgba(214, 205, 185, 0.2);
+	--bs-table-hover-bg: rgba(184, 114, 77, 0.08);
+	border-collapse: separate;
+	border-spacing: 0;
+}
+table.hx-grid thead th,
+table.table thead th {
+	font-family: var(--font-mono);
+	font-size: 0.68rem;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--muted);
+	font-weight: 500;
+	background: transparent !important;
+	border-top: 1px solid var(--ink);
+	border-bottom: 1px solid var(--ink);
+	padding: 0.7rem 0.9rem;
+	position: sticky;
+	top: 0;
+	z-index: 2;
+}
+table.hx-grid tbody td,
+table.table tbody td {
+	padding: 0.55rem 0.9rem;
+	border-top: 1px solid var(--rule);
+	border-bottom: 0;
+	vertical-align: middle;
+}
+table.hx-grid tbody tr:hover > td { background: rgba(184, 114, 77, 0.05); }
+table.hx-grid tbody tr.table-active > td { background: rgba(184, 114, 77, 0.12) !important; }
+
+.cell-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+
+/* total / subtotal row styling */
+tr.row-total > td {
+	background: rgba(26, 22, 18, 0.05);
+	border-top: 1px solid var(--ink) !important;
+	border-bottom: 1px solid var(--ink) !important;
+	font-weight: 600;
+}
+tr.row-subtotal > td {
+	background: rgba(26, 22, 18, 0.025);
+	font-weight: 500;
+	border-top: 1px solid var(--rule);
+}
+tr.row-section-header > td {
+	background: var(--ink);
+	color: var(--paper);
+	font-family: var(--font-mono);
+	font-size: 0.72rem;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	padding: 0.55rem 0.9rem;
+	border-top: 0 !important;
+}
+
+/* ============================================================
+   Consistency classes (cross-year table)
+   ============================================================ */
+.c-ok      { background: var(--ok-soft)   !important; color: var(--ok)   !important; }
+.c-ok-sign { background: var(--ok-soft)   !important; color: var(--ok)   !important;
+             text-decoration: underline dashed rgba(45, 95, 63, 0.4); text-underline-offset: 3px; }
+.c-warn    { background: var(--warn-soft) !important; color: var(--warn) !important; }
+.c-bad     { background: var(--bad-soft)  !important; color: var(--bad)  !important; font-weight: 600; }
+
+.status-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.15rem 0.55rem;
+	font-family: var(--font-mono);
+	font-size: 0.68rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	border: 1px solid currentColor;
+	border-radius: 999px;
+}
+.status-pill.ok   { color: var(--ok);   background: var(--ok-soft); }
+.status-pill.bad  { color: var(--bad);  background: var(--bad-soft); }
+.status-pill.warn { color: var(--warn); background: var(--warn-soft); }
+
+/* legend dots */
+.legend-dot {
+	display: inline-block;
+	width: 0.65rem;
+	height: 0.65rem;
+	border-radius: 2px;
+	margin-right: 0.4rem;
+	vertical-align: 0;
+}
+.legend-dot.ok   { background: var(--ok-soft);   border: 1px solid var(--ok); }
+.legend-dot.warn { background: var(--warn-soft); border: 1px solid var(--warn); }
+.legend-dot.bad  { background: var(--bad-soft);  border: 1px solid var(--bad); }
+
+/* ============================================================
+   Typography helpers
+   ============================================================ */
+.eyebrow {
+	font-family: var(--font-mono);
+	font-size: 0.7rem;
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+.divider {
+	height: 1px;
+	background: linear-gradient(90deg, var(--ink) 0, var(--ink) 4rem, var(--rule) 4rem, var(--rule) 100%);
+	border: 0;
+	margin: 2rem 0 1.5rem;
+}
+
+/* KPI block */
+.kpi {
+	display: flex;
+	flex-direction: column;
+	padding: 0.9rem 1rem;
+	border: 1px solid var(--rule);
+	background: #fdfaf3;
+}
+.kpi .kpi-label {
+	font-family: var(--font-mono);
+	font-size: 0.65rem;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+.kpi .kpi-value {
+	font-family: var(--font-display);
+	font-variation-settings: "opsz" 144, "SOFT" 50;
+	font-size: 1.6rem;
+	line-height: 1.05;
+	margin-top: 0.35rem;
+	color: var(--ink);
+}
+.kpi .kpi-value.tabular { font-family: var(--font-mono); font-size: 1.35rem; }
+.kpi .kpi-sub { font-family: var(--font-mono); font-size: 0.7rem; color: var(--muted); margin-top: 0.2rem; }
+.kpi.ok  { border-color: var(--ok);  }
+.kpi.bad { border-color: var(--bad); }
+.kpi.ok  .kpi-value { color: var(--ok); }
+.kpi.bad .kpi-value { color: var(--bad); }
+
+/* ============================================================
+   Buttons — refine Havit/Bootstrap primary
+   ============================================================ */
+.btn.btn-primary, button.btn-primary, .hx-button.btn-primary {
+	--bs-btn-bg: var(--ink) !important;
+	--bs-btn-border-color: var(--ink) !important;
+	--bs-btn-hover-bg: var(--accent-ink) !important;
+	--bs-btn-hover-border-color: var(--accent-ink) !important;
+	--bs-btn-active-bg: var(--accent) !important;
+	--bs-btn-active-border-color: var(--accent) !important;
+	--bs-btn-color: var(--paper) !important;
+	--bs-btn-hover-color: var(--paper) !important;
+	--bs-btn-disabled-bg: var(--ink) !important;
+	--bs-btn-disabled-border-color: var(--ink) !important;
+	--bs-btn-disabled-color: var(--paper) !important;
+	border-radius: 2px;
+	font-family: var(--font-mono);
+	font-size: 0.8rem;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	padding: 0.65rem 1.2rem;
+}
+.btn-outline-secondary, .btn-secondary {
+	border-radius: 2px;
+	font-family: var(--font-mono);
+	font-size: 0.78rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+.btn-light {
+	border: 1px solid var(--rule);
+	background: #fdfaf3;
+	border-radius: 2px;
+	font-family: var(--font-mono);
+	font-size: 0.72rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+/* form-control editorial */
+.form-control, .form-select {
+	border-radius: 2px;
+	border-color: var(--rule);
+	background: #fdfaf3;
+	font-family: var(--font-body);
+}
+.form-control:focus, .form-select:focus {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px rgba(184, 114, 77, 0.15);
+}
+.form-label {
+	font-family: var(--font-mono);
+	font-size: 0.7rem;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--muted);
+}
+
+/* markdown rendered view — editorial */
+.markdown-view {
+	background: #fdfaf3;
+	border: 1px solid var(--rule);
+	border-radius: 2px;
+	padding: 1.5rem 1.75rem;
+	max-height: 72vh;
+	overflow: auto;
+	font-family: var(--font-body);
+	line-height: 1.55;
+}
+.markdown-view table {
+	font-family: var(--font-mono);
+	font-size: 0.78rem;
+	font-variant-numeric: tabular-nums;
+	border-collapse: collapse;
+	width: 100%;
+	margin: 1rem 0;
+}
+.markdown-view table th,
+.markdown-view table td {
+	border: 1px solid var(--rule);
+	padding: 0.3rem 0.55rem;
+}
+.markdown-view table th { background: var(--ink); color: var(--paper); }
+.markdown-view h1 { font-size: 1.6rem; margin-top: 1.5rem; }
+.markdown-view h2 { font-size: 1.3rem; margin-top: 1.25rem; }
+.markdown-view h3 { font-size: 1.1rem; margin-top: 1rem; }
+
+/* HxTabPanel tweaks */
+.nav-tabs { border-bottom: 1px solid var(--ink); }
+.nav-tabs .nav-link {
+	border: 0;
+	border-bottom: 2px solid transparent;
+	color: var(--muted);
+	font-family: var(--font-mono);
+	font-size: 0.75rem;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	padding: 0.7rem 1.1rem;
+	background: transparent;
+}
+.nav-tabs .nav-link.active,
+.nav-tabs .nav-link:hover {
+	color: var(--ink);
+	border-bottom-color: var(--accent);
+	background: transparent;
+}
+
+/* HxAccordion tweaks */
+.accordion-item {
+	border: 1px solid var(--rule);
+	border-radius: 0;
+	margin-bottom: 0.6rem;
+	background: #fdfaf3;
+}
+.accordion-button {
+	border-radius: 0 !important;
+	background: #fdfaf3;
+	font-family: var(--font-body);
+	padding: 1rem 1.2rem;
+}
+.accordion-button:not(.collapsed) {
+	background: var(--ink);
+	color: var(--paper);
+	box-shadow: inset 0 -1px 0 var(--accent);
+}
+.accordion-button:not(.collapsed)::after {
+	filter: invert(1) brightness(2) sepia(1) hue-rotate(-10deg) saturate(5);
+}
+
+/* HxMessenger — top right editorial */
+.hx-messenger {
+	top: 5.5rem;
+	right: 2rem;
+}
+
+/* Drop zone */
+.app-empty-state {
+	text-align: center;
+	padding: 4rem 2rem;
+	border: 1px dashed var(--rule);
+	background: #fdfaf3;
+	color: var(--muted);
+	font-family: var(--font-body);
+}
+.app-empty-state .display {
+	font-size: 2.4rem;
+	color: var(--ink);
+	margin-bottom: 0.5rem;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 992px) {
+	.app-content { padding: 1.5rem 1.25rem 3rem; }
+	.app-ticker { padding: 0.6rem 1.25rem; gap: 1rem; font-size: 0.65rem; }
+}
